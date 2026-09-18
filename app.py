@@ -975,36 +975,4 @@ st.download_button(
 )
 
 
-# ---- 全部学生总览 ----
-with st.expander("📊 查看全部学生汇总（点击展开）"):
-    rows = []
-    for _, s in students.iterrows():
-        p = df_all[
-            (df_all["姓名"] == s["姓名"])
-            & (df_all["学号"].astype(str) == str(s["学号"]))
-        ]
-        da = p[p["类别"].str.startswith("履职尽责")]
-        d = min(da["加分"].max(), 5) if not da.empty else 0
-        h = min(p[p["类别"]=="人文修养 · A类"]["加分"].sum(), 20)
-        bp = p[p["类别"]=="学院B类活动"]
-        if not bp.empty:
-            bd = bp.groupby("来源", as_index=False)["加分"].max()
-            b = min(bd["加分"].sum(), 20)
-        else:
-            b = 0
-        rows.append({
-            "姓名": s["姓名"], "学号": s["学号"],
-            "履职尽责": d, "人文修养": h, "B类活动": b,
-            "合计加分": d + h + b,
-            "综合总分": min(75 + d + h + b, 100)
-        })
-    df_sum = pd.DataFrame(rows).sort_values("综合总分", ascending=False).reset_index(drop=True)
-    df_sum.insert(0, "排名", df_sum["综合总分"].rank(ascending=False, method="min").astype(int))
-    st.dataframe(df_sum, use_container_width=True, hide_index=True)
 
-    st.download_button(
-        "📥 下载全部学生汇总表",
-        data=to_excel_bytes({"全部汇总": df_sum}),
-        file_name="全部学生德育分汇总.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
