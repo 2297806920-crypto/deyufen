@@ -207,6 +207,9 @@ DATA_42 = [
 # ============================================================
 # 五、组装数据
 # ============================================================
+# ============================================================
+# 五、组装数据（自动补全 5.3 学号）
+# ============================================================
 df_51 = pd.DataFrame(DATA_51, columns=["姓名","学号","等级","来源"])
 df_51["加分"] = df_51["等级"].map({"A":5,"B":4,"C":3}).fillna(0)
 df_51["类别"] = "履职尽责 · 校团委"
@@ -219,6 +222,39 @@ df_53["类别"] = "履职尽责 · 院学生会"
 
 df_42 = pd.DataFrame(DATA_42, columns=["学号","姓名","学院","来源","加分"])
 df_42["类别"] = "人文修养"
+
+# ---------- 建立 姓名→学号 对照表 ----------
+name_to_id = {}
+for df in [df_51, df_52, df_42]:
+    for _, r in df.iterrows():
+        n = str(r["姓名"]).strip()
+        sid = str(r["学号"]).strip()
+        if n and sid and sid != "nan":
+            name_to_id.setdefault(n, sid)
+
+# 5.3 如果有学号，也补充进对照表
+for _, r in df_53.iterrows():
+    n = str(r["姓名"]).strip()
+    sid = str(r["学号"]).strip()
+    if n and sid and sid != "nan":
+        name_to_id.setdefault(n, sid)
+
+# ---------- 给 5.2 和 5.3 补学号 ----------
+def fill_id(df):
+    df = df.copy()
+    df["学号"] = df.apply(
+        lambda r: r["学号"] if str(r["学号"]).strip() not in ("", "nan")
+        else name_to_id.get(str(r["姓名"]).strip(), ""),
+        axis=1
+    )
+    return df
+
+df_52 = fill_id(df_52)
+df_53 = fill_id(df_53)
+
+# 统计一下 5.3 里还有多少人没补到学号
+missing = df_53[df_53["学号"] == ""][["姓名","来源","加分"]].drop_duplicates()
+missing_names = sorted(missing["姓名"].unique().tolist())
 
 
 def combine():
