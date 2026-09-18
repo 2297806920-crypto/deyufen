@@ -238,7 +238,7 @@ students = df_all[["姓名","学号"]].drop_duplicates().reset_index(drop=True)
 # 六、侧边栏（只有一个搜索框）
 # ============================================================
 st.sidebar.title("📋 德育分查询")
-st.sidebar.markdown("输入**姓名**或**学号**，支持模糊搜索")
+st.sidebar.markdown("输入**学号**，支持模糊搜索")
 
 kw = st.sidebar.text_input(
     "🔍 搜索",
