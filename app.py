@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-德育分一站式材料收集与统计系统
-运行：streamlit run app.py
+德育分一站式材料收集与统计系统（单搜索框版）
 """
 
 import io
@@ -125,7 +124,6 @@ DATA_53 = [
 
 # ============================================================
 # 四、4.2 A类项目（示例：国际卓越工程师学院相关记录）
-# 完整数据请用侧边栏上传 Excel
 # ============================================================
 DATA_42 = [
     ("24010444","彭新睿","国际卓越工程师学院","多语种歌唱大赛",2),
@@ -148,7 +146,7 @@ DATA_42 = [
     ("23010537","姚远","国际卓越工程师学院","多语种歌唱大赛",2),
     ("23010554","王静怡","国际卓越工程师学院","多语种歌唱大赛",2),
     ("23010580","洪可欣","国际卓越工程师学院","多语种歌唱大赛",2),
-    # 通海讲堂127期（部分）
+    # 通海讲堂127期
     ("25012807","李智信","国际卓越工程师学院","通海讲堂127期",2),
     ("25010472","蔡奕璇","国际卓越工程师学院","通海讲堂127期",2),
     ("25012098","梁予辰","国际卓越工程师学院","通海讲堂127期",2),
@@ -237,26 +235,26 @@ students = df_all[["姓名","学号"]].drop_duplicates().reset_index(drop=True)
 
 
 # ============================================================
-# 六、侧边栏
+# 六、侧边栏（只有一个搜索框）
 # ============================================================
 st.sidebar.title("📋 德育分查询")
-keyword = st.sidebar.text_input("🔍 输入姓名或学号（支持模糊）", placeholder="例如：王泽恒 / 王 / 24010468")
+st.sidebar.markdown("输入**姓名**或**学号**，支持模糊搜索")
 
-opts = [""] + [f"{r.姓名}（{r.学号 or '无学号'}）" for r in students.itertuples()]
-selected = st.sidebar.selectbox("或从列表选择", opts)
+kw = st.sidebar.text_input(
+    "🔍 搜索",
+    placeholder="例如：王泽恒 / 王 / 24010468",
+    label_visibility="collapsed",
+)
 
 st.sidebar.markdown("---")
-
-# 上传 4.2 完整表（可选）
 st.sidebar.markdown("**📤 上传完整 4.2 A类项目表（可选）**")
-uploaded = st.sidebar.file_uploader("选择 Excel 或 CSV", type=["xlsx","xls","csv"])
+uploaded = st.sidebar.file_uploader("选择 Excel 或 CSV", type=["xlsx","xls","csv"], label_visibility="collapsed")
 if uploaded is not None:
     try:
         if uploaded.name.lower().endswith(".csv"):
             extra = pd.read_csv(uploaded)
         else:
             extra = pd.read_excel(uploaded)
-        # 自动识别列名
         col_map = {}
         for c in extra.columns:
             cs = str(c)
@@ -273,9 +271,7 @@ if uploaded is not None:
             extra["学号"] = extra["学号"].astype(str).str.replace(r"\.0$","",regex=True)
             extra["加分"] = pd.to_numeric(extra["加分"], errors="coerce").fillna(0)
             extra["类别"] = "人文修养"
-            # 覆盖 df_42
-            df_42_uploaded = extra[["学号","姓名","学院","来源","加分","类别"]]
-            df_42 = df_42_uploaded
+            df_42 = extra[["学号","姓名","学院","来源","加分","类别"]]
             df_all = combine()
             students = df_all[["姓名","学号"]].drop_duplicates().reset_index(drop=True)
             st.sidebar.success(f"已上传 {len(extra)} 条记录")
@@ -289,38 +285,49 @@ st.sidebar.caption("数据来源：5.1 校团委 / 5.2 院团委 / 5.3 院学生
 
 
 # ============================================================
-# 七、查询逻辑
+# 七、查询逻辑（单搜索框，多条匹配用按钮选）
 # ============================================================
+if "picked_name" not in st.session_state:
+    st.session_state.picked_name = ""
+    st.session_state.picked_id = ""
+
 target_name, target_id = "", ""
 
-if keyword.strip():
-    kw = keyword.strip()
+if kw.strip():
+    k = kw.strip()
     hit = students[
-        students["姓名"].str.contains(kw, na=False)
-        | students["学号"].astype(str).str.contains(kw, na=False)
-    ]
+        students["姓名"].str.contains(k, na=False)
+        | students["学号"].astype(str).str.contains(k, na=False)
+    ].drop_duplicates().reset_index(drop=True)
+
     if len(hit) == 0:
         st.title("📋 德育分查询系统")
-        st.warning(f"❌ 没找到「{kw}」，请检查姓名或学号")
+        st.warning(f"❌ 没找到「{k}」，请检查姓名或学号")
         st.stop()
-    elif len(hit) > 1:
-        st.title("📋 德育分查询系统")
-        st.info(f"找到 {len(hit)} 条匹配，请从下面选一个，或用左侧下拉框精确选择：")
-        st.dataframe(hit, use_container_width=True, hide_index=True)
-        st.stop()
-    else:
+    elif len(hit) == 1:
         target_name = hit.iloc[0]["姓名"]
         target_id = str(hit.iloc[0]["学号"])
-elif selected:
-    m = re.match(r"(.+?)（(.+?)）", selected)
-    if m:
-        target_name = m.group(1)
-        tid = m.group(2)
-        target_id = "" if tid == "无学号" else tid
+    else:
+        st.title("📋 德育分查询系统")
+        st.info(f"找到 **{len(hit)}** 条匹配，点击下面按钮选择：")
+        cols = st.columns(3)
+        for i, row in hit.iterrows():
+            label = f"{row['姓名']}（{row['学号'] or '无学号'}）"
+            with cols[i % 3]:
+                if st.button(label, key=f"pick_{i}", use_container_width=True):
+                    st.session_state.picked_name = row["姓名"]
+                    st.session_state.picked_id = str(row["学号"])
+                    st.rerun()
+        st.stop()
 else:
-    st.title("📋 德育分查询系统")
-    st.info("👈 在左侧输入姓名或学号（支持模糊搜索）")
-    st.stop()
+    # 未输入时，如果之前点过，就继续显示
+    if st.session_state.picked_name:
+        target_name = st.session_state.picked_name
+        target_id = st.session_state.picked_id
+    else:
+        st.title("📋 德育分查询系统")
+        st.info("👈 在左侧输入姓名或学号开始查询")
+        st.stop()
 
 
 # ============================================================
@@ -334,7 +341,6 @@ person = df_all[
 st.title(f"👤 {target_name}")
 st.caption(f"学号：{target_id or '未提供'}")
 
-# 履职尽责：所有"履职尽责"类别取最高
 duty = person[person["类别"].str.startswith("履职尽责")]["加分"].max() if not person[person["类别"].str.startswith("履职尽责")].empty else 0
 human = person[person["类别"]=="人文修养"]["加分"].sum()
 total = duty + human
@@ -349,7 +355,7 @@ detail = person[["类别","来源","加分"]].rename(columns={"来源":"项目/�
 detail = detail.sort_values(["类别","加分"], ascending=[True, False]).reset_index(drop=True)
 st.dataframe(detail, use_container_width=True, hide_index=True)
 
-# ---------- 证明材料指引 ----------
+# 证明材料指引
 st.markdown("### 📎 证明材料与截图指引")
 st.markdown(f"""
 **{target_name}** 需要准备的佐证材料：
@@ -367,7 +373,7 @@ for _, r in person.iterrows():
     st.code(f"{r['学号']} | {r['姓名']} | {r['类别']} | {r['来源']} | 加分：{r['加分']}", language=None)
 
 
-# ---------- 导出 ----------
+# 导出
 st.markdown("### ⬇️ 导出统计表")
 
 def to_excel_bytes(sheets):
@@ -398,7 +404,7 @@ st.download_button(
 )
 
 
-# ---------- 全部学生总览 ----------
+# 全部学生总览
 with st.expander("📊 查看全部学生汇总（点击展开）"):
     rows = []
     for _, s in students.iterrows():
