@@ -942,20 +942,13 @@ c4.metric("额外加分", f"{extra_score:.1f} / 5")
 c5.metric("综合总分", f"{final_score:.1f}")
 
 
+
 # ===== 明细 =====
 st.markdown("### 📌 加分明细")
 
-if not duty_all.empty or class_role > 0:
-    st.markdown("**① 履职尽责（取最高，上限5）**")
-    duty_rows = []
-    for _, r in duty_all.iterrows():
-        duty_rows.append({"来源": r["来源"], "加分": r["加分"]})
-    if class_role > 0:
-        duty_rows.append({"来源": "班级职务（自填）", "加分": class_role})
-    st.dataframe(pd.DataFrame(duty_rows), use_container_width=True, hide_index=True)
-
+# ① 人文修养
 if human_a > 0 or not b_dedup.empty or coffee_score > 0:
-    st.markdown("**② 人文修养（A类 + B类 + 法语咖啡，累计上限20）**")
+    st.markdown("**① 人文修养（A类 + B类 + 法语咖啡，累计上限20）**")
     human_rows = []
     for _, r in person[person["类别"]=="人文修养 · A类"].iterrows():
         human_rows.append({"来源": f"[A类] {r['来源']}", "加分": r["加分"]})
@@ -965,20 +958,32 @@ if human_a > 0 or not b_dedup.empty or coffee_score > 0:
         human_rows.append({"来源": f"[B类] 法语咖啡 × {coffee_n} 次", "加分": coffee_score})
     st.dataframe(pd.DataFrame(human_rows), use_container_width=True, hide_index=True)
 
+# ② 创新创业与社会实践（包含履职尽责）
 if social_total > 0:
-    st.markdown("**③ 创新创业与社会实践（履职+竞赛+志愿+实践，上限20）**")
+    st.markdown("**② 创新创业与社会实践（履职+竞赛+志愿+实践，上限20）**")
     social_rows = []
-    social_rows.append({"来源": "履职尽责（取最高）", "加分": duty})
+    
+    # 履职尽责作为子项列在这里
+    if duty > 0:
+        duty_src = "履职尽责"
+        if class_role > 0:
+            duty_src += "（班级职务）"
+        elif not duty_all.empty:
+            duty_src += f"（{duty_all.iloc[0]['来源']}）"
+        social_rows.append({"来源": duty_src, "加分": duty})
+    
     if contest_score > 0:
         social_rows.append({"来源": f"竞赛获奖：{contest}", "加分": contest_score})
     if vol_score > 0:
         social_rows.append({"来源": f"志愿服务 {vol_h} 小时{('，' + vol_extra) if vol_extra != '无' else ''}", "加分": vol_score})
     if practice > 0:
         social_rows.append({"来源": "实践实习", "加分": practice})
+    
     st.dataframe(pd.DataFrame(social_rows), use_container_width=True, hide_index=True)
 
+# ③ 额外加分
 if extra_score > 0:
-    st.markdown("**④ 额外加分（上限5）**")
+    st.markdown("**③ 额外加分（上限5）**")
     st.dataframe(pd.DataFrame([{"来源": "献血/国际实习/新生督导", "加分": extra_score}]),
                  use_container_width=True, hide_index=True)
 
