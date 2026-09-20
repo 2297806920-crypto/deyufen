@@ -982,7 +982,6 @@ if extra_score > 0:
     st.dataframe(pd.DataFrame([{"来源": "献血/国际实习/新生督导", "加分": extra_score}]),
                  use_container_width=True, hide_index=True)
 
-
 # ===== 证明材料清单 =====
 st.markdown("### 📎 证明材料清单")
 st.markdown(f"""
